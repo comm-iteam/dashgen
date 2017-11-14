@@ -55,23 +55,18 @@ encode_bitrate_segment_command = \
 #     "-c:v copy " \
 #     "/media/{video_base_name}_b{bitrate}_{start_time_format}.{extension}"
 
-encode_yuv_quality_segment = \
+encode_yuv_segment = \
     "docker run --rm -v {current_dir}:/media jrottenberg/ffmpeg:3.2 " \
     "-y -i /media/{video_file_name} " \
     "-ss {start_time} -t {duration} " \
-    "/media/{video_base_name}_{codec}_crf{crf}_{start_time_format}.{extension}"
-
-encode_yuv_bitrate_segment = \
-    "docker run --rm -v {current_dir}:/media jrottenberg/ffmpeg:3.2 " \
-    "-y -i /media/{video_file_name} " \
-    "-ss {start_time} -t {duration} " \
-    "/media/{video_base_name}_{codec}_b{bitrate}_{start_time_format}.{extension} 2>&1"
+    "/media/{video_base_name}_{start_time_format}.{extension}"
 
 psnr_command = "docker run --rm -v {current_dir}:/media jrottenberg/ffmpeg:3.2 " \
                "-i /media/{file_orig} -i /media/{file_compare} -lavfi psnr " \
                "-f null - 2>&1 | grep average | cut -d' ' -f8 | cut -d':' -f2"
 psnr_quality_file = "{video_base_name}_{codec}_crf{crf}_{start_time_format}.{extension}"
 psnr_bitrate_file = "{video_base_name}_{codec}_b{bitrate}_{start_time_format}.{extension}"
+psnr_yuv_file = "{video_base_name}_{start_time_format}.{extension}"
 
 parser = argparse.ArgumentParser(description='Generate DASH Video')
 group = parser.add_mutually_exclusive_group()
@@ -201,23 +196,19 @@ if args.qualities:
                     print("Escape encoding segment: %s" % file_segment_compare)
 
                 # yuv segment name
-                file_segment_yuv = psnr_quality_file.format(video_base_name=input_file_extensionless_basename,
-                                                            codec=args.codec,
-                                                            crf=i,
-                                                            start_time_format=str(j).zfill(3),
-                                                            extension="y4m")
+                file_segment_yuv = psnr_yuv_file.format(video_base_name=input_file_extensionless_basename,
+                                                        start_time_format=str(j).zfill(3),
+                                                        extension="y4m")
                 # check if it exists
                 segment_yuv_exists = os.path.isfile(file_segment_yuv)
                 if not segment_yuv_exists:
-                    encode_yuv_segment_string = encode_yuv_quality_segment.format(current_dir=input_file_path,
-                                                                                  video_file_name=input_file_basename,
-                                                                                  start_time=j,
-                                                                                  start_time_format=str(j).zfill(3),
-                                                                                  duration=args.segment_size,
-                                                                                  codec=args.codec,
-                                                                                  crf=i,
-                                                                                  video_base_name=input_file_extensionless_basename,
-                                                                                  extension="y4m")
+                    encode_yuv_segment_string = encode_yuv_segment.format(current_dir=input_file_path,
+                                                                          video_file_name=input_file_basename,
+                                                                          start_time=j,
+                                                                          start_time_format=str(j).zfill(3),
+                                                                          duration=args.segment_size,
+                                                                          video_base_name=input_file_extensionless_basename,
+                                                                          extension="y4m")
                     print("Running: %s" % encode_yuv_segment_string)
                     encode_yuv_segment_result = subprocess.check_output(encode_yuv_segment_string, shell=True)
                 else:
@@ -304,23 +295,19 @@ elif args.bitrates:
                     print("Escape encoding segment: %s" % file_segment_compare)
 
                 # yuv segment name
-                file_segment_yuv = psnr_bitrate_file.format(video_base_name=input_file_extensionless_basename,
-                                                            codec=args.codec,
-                                                            bitrate=i,
-                                                            start_time_format=str(j).zfill(3),
-                                                            extension="y4m")
+                file_segment_yuv = psnr_yuv_file.format(video_base_name=input_file_extensionless_basename,
+                                                        start_time_format=str(j).zfill(3),
+                                                        extension="y4m")
                 # check if it exists
                 segment_yuv_exists = os.path.isfile(file_segment_yuv)
                 if not segment_yuv_exists:
-                    encode_yuv_segment_string = encode_yuv_bitrate_segment.format(current_dir=input_file_path,
-                                                                                  video_file_name=input_file_basename,
-                                                                                  start_time=j,
-                                                                                  start_time_format=str(j).zfill(3),
-                                                                                  duration=args.segment_size,
-                                                                                  codec=args.codec,
-                                                                                  bitrate=i,
-                                                                                  video_base_name=input_file_extensionless_basename,
-                                                                                  extension="y4m")
+                    encode_yuv_segment_string = encode_yuv_segment.format(current_dir=input_file_path,
+                                                                          video_file_name=input_file_basename,
+                                                                          start_time=j,
+                                                                          start_time_format=str(j).zfill(3),
+                                                                          duration=args.segment_size,
+                                                                          video_base_name=input_file_extensionless_basename,
+                                                                          extension="y4m")
                     print("Running: %s" % encode_yuv_segment_string)
                     encode_yuv_segment_result = subprocess.check_output(encode_yuv_segment_string, shell=True)
                 else:
