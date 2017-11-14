@@ -117,7 +117,7 @@ print("Video file exists: %s" % input_file_exists)
 ffprobe_command_string = ffprobe_duration.format(current_dir=input_file_path, video_file_name=input_file_basename)
 print("Duration command: %s" % ffprobe_command_string)
 ffprobe_command_result = subprocess.check_output(ffprobe_command_string, shell=True)
-ffprobe_command_json = json.loads(ffprobe_command_result)
+ffprobe_command_json = json.loads(ffprobe_command_result.decode())
 video_duration = int(float(ffprobe_command_json["streams"][0]["duration"]))
 print("Video duration: %d" % video_duration)
 
