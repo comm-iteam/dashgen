@@ -104,7 +104,7 @@ print("Input file path: %s" % input_file_path)
 print("Base name: %s" % input_file_basename)
 print("Extensionless file: %s" % input_file_extensionless_basename)
 
-if args.codec == 'libx264':
+if args.codec == 'libx264' or args.codec == "libx265":
     file_extension = 'mp4'
 elif args.codec == 'vp9':
     file_extension = 'webm'
