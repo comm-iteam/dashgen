@@ -5,7 +5,7 @@ import os
 import subprocess
 
 encode_quality_command = \
-    "docker run --rm -v {current_dir}:/media jrottenberg/ffmpeg:3.2 " \
+    "docker run --rm -v {current_dir}:/media -u $(id -u):$(id -g) jrottenberg/ffmpeg:3.2 " \
     "-y -i /media/{video_file_name} " \
     "-c:v {codec} -crf {crf} -b:v 0 " \
     "-g {gop_size} -keyint_min {gop_size} -sc_threshold 0 " \
@@ -14,7 +14,7 @@ encode_quality_command = \
 encoded_quality_file = "{video_base_name}_{codec}_crf{crf}.{extension}"
 
 encode_bitrate_command = \
-    "docker run --rm -v {current_dir}:/media jrottenberg/ffmpeg:3.2 " \
+    "docker run --rm -v {current_dir}:/media -u $(id -u):$(id -g) jrottenberg/ffmpeg:3.2 " \
     "-y -i /media/{video_file_name} " \
     "-c:v {codec} -b:v {bitrate} -maxrate {bitrate} -bufsize {bitrate} " \
     "-g {gop_size} -keyint_min {gop_size} -sc_threshold 0 " \
@@ -22,46 +22,32 @@ encode_bitrate_command = \
 
 encoded_bitrate_file = "{video_base_name}_{codec}_b{bitrate}.{extension}"
 
-ffprobe_duration = "docker run --rm --entrypoint='ffprobe' -v {current_dir}:/media jrottenberg/ffmpeg:3.2 " \
+ffprobe_duration = "docker run --rm --entrypoint='ffprobe' -v {current_dir}:/media -u $(id -u):$(id -g) jrottenberg/ffmpeg:3.2 " \
                    "-v quiet -print_format json -show_format -show_streams /media/{video_file_name}"
 
 encode_quality_segment_command = \
-    "docker run --rm -v {current_dir}:/media jrottenberg/ffmpeg:3.2 " \
+    "docker run --rm -v {current_dir}:/media -u $(id -u):$(id -g) jrottenberg/ffmpeg:3.2 " \
     "-y -i /media/{video_file_name} " \
     "-ss {start_time} -t {duration} " \
     "-c:v {codec} -crf {crf} -b:v 0 " \
     "-g {gop_size} -keyint_min {gop_size} -sc_threshold 0 " \
     "/media/{video_base_name}_{codec}_crf{crf}_{start_time_format}.{extension}"
 
-# encode_quality_segment_copy_command = \
-#     "docker run --rm -v {current_dir}:/media jrottenberg/ffmpeg:3.2 " \
-#     "-y -i /media/{video_file_name} " \
-#     "-ss {start_time} -t {duration} " \
-#     "-c:v copy " \
-#     "/media/{video_base_name}_crf{crf}_{start_time_format}.{extension}"
-
 encode_bitrate_segment_command = \
-    "docker run --rm -v {current_dir}:/media jrottenberg/ffmpeg:3.2 " \
+    "docker run --rm -v {current_dir}:/media -u $(id -u):$(id -g) jrottenberg/ffmpeg:3.2 " \
     "-y -i /media/{video_file_name} " \
     "-ss {start_time} -t {duration} " \
     "-c:v {codec} -b:v {bitrate} -maxrate {bitrate} -bufsize {bitrate} " \
     "-g {gop_size} -keyint_min {gop_size} -sc_threshold 0 " \
     "/media/{video_base_name}_{codec}_b{bitrate}_{start_time_format}.{extension}"
 
-# encode_bitrate_segment_copy_command = \
-#     "docker run --rm -v {current_dir}:/media jrottenberg/ffmpeg:3.2 " \
-#     "-y -i /media/{video_file_name} " \
-#     "-ss {start_time} -t {duration} " \
-#     "-c:v copy " \
-#     "/media/{video_base_name}_b{bitrate}_{start_time_format}.{extension}"
-
 encode_yuv_segment = \
-    "docker run --rm -v {current_dir}:/media jrottenberg/ffmpeg:3.2 " \
+    "docker run --rm -v {current_dir}:/media -u $(id -u):$(id -g) jrottenberg/ffmpeg:3.2 " \
     "-y -i /media/{video_file_name} " \
     "-ss {start_time} -t {duration} " \
     "/media/{video_base_name}_{start_time_format}.{extension}"
 
-psnr_command = "docker run --rm -v {current_dir}:/media jrottenberg/ffmpeg:3.2 " \
+psnr_command = "docker run --rm -v {current_dir}:/media -u $(id -u):$(id -g) jrottenberg/ffmpeg:3.2 " \
                "-i /media/{file_orig} -i /media/{file_compare} -lavfi psnr " \
                "-f null - 2>&1 | grep average | cut -d' ' -f8 | cut -d':' -f2"
 psnr_quality_file = "{video_base_name}_{codec}_crf{crf}_{start_time_format}.{extension}"
@@ -176,16 +162,6 @@ if args.qualities:
                                                                                           video_base_name=input_file_extensionless_basename,
                                                                                           extension=file_extension)
 
-                    # input_encoded_file_path = encoded_file_name
-                    # encode_command_segment_string = encode_quality_segment_copy_command.format(current_dir=input_file_path,
-                    #                                                                       video_file_name=input_encoded_file_path,
-                    #                                                                       start_time=j,
-                    #                                                                       start_time_format=str(j).zfill(3),
-                    #                                                                       duration=args.segment_size,
-                    #                                                                       crf=i,
-                    #                                                                       gop_size=args.segment_size * args.frames_per_second,
-                    #                                                                       video_base_name=input_file_extensionless_basename,
-                    #                                                                       extension=file_extension)
                     print("Running: %s" % encode_command_segment_string)
                     encode_segment_result = subprocess.check_output(encode_command_segment_string, shell=True)
                 else:
@@ -247,14 +223,6 @@ elif args.bitrates:
                                                                   video_base_name=input_file_extensionless_basename,
                                                                   extension=file_extension)
 
-            # input_encoded_file_path = encoded_file_name
-            # encode_command_string = encode_bitrate_segment_copy_command.format(current_dir=input_file_path,
-            #                                                       video_file_name=input_encoded_file_path,
-            #                                                       codec=args.codec,
-            #                                                       bitrate=i,
-            #                                                       gop_size=args.segment_size * args.frames_per_second,
-            #                                                       video_base_name=input_file_extensionless_basename,
-            #                                                       extension=file_extension)
             print("Running: %s" % encode_command_string)
             encode_result = subprocess.check_output(encode_command_string, shell=True)
         else:
