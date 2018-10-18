@@ -4,3 +4,4 @@
 *.y4m
 *.webm
 *.json
+venv/
