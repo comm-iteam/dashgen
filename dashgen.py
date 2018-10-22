@@ -232,12 +232,12 @@ if args.qualities:
                                                           file_orig=file_segment_yuv,
                                                           file_compare=file_segment_compare_yuv)
                 print("VMAF command: %s" % vmaf_command_string)
-                # vmaf_command_result = subprocess.check_output(vmaf_command_string, shell=True).decode().replace('\\n', '\n')
-                # vmaf_command_result_json = json.loads(vmaf_command_result)
-                # print("VMAF result: %s" % vmaf_command_result)
-                # vmaf_command_final = vmaf_command_result_json["aggregate"]["VMAF_score"]
-                # print("VMAF mean: %s" % vmaf_command_final)
-                # vmaf_crf_list.append(float(vmaf_command_final))
+                vmaf_command_result = subprocess.check_output(vmaf_command_string, shell=True).decode().replace('\\n', '\n')
+                vmaf_command_result_json = json.loads(vmaf_command_result)
+                print("VMAF result: %s" % vmaf_command_result)
+                vmaf_command_final = vmaf_command_result_json["aggregate"]["VMAF_score"]
+                print("VMAF mean: %s" % vmaf_command_final)
+                vmaf_crf_list.append(float(vmaf_command_final))
                 if args.clean:
                     os.remove(file_segment_compare_yuv)
                     os.remove(file_segment_compare)
