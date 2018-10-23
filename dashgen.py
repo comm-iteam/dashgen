@@ -250,7 +250,7 @@ if args.qualities:
             else:
                 psnr_file_diff = "_bitrate_vmaf"
             with open(input_file_extensionless_basename + psnr_file_diff + ".json", 'w') as file:
-                file.write(json.dumps(psnrs, sort_keys=False, indent=4, separators=(',', ': ')))
+                file.write(json.dumps(vmafs, sort_keys=False, indent=4, separators=(',', ': ')))
 
         # calculate segment psnr
         psnr_crf_list = []
