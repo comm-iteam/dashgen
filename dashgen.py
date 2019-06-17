@@ -38,6 +38,11 @@ decode_quality_segment_command = \
     "-y -i /media/{video_file_name} " \
     "/media/{video_base_name}_{codec}_crf{crf}_{start_time_format}.{extension}"
 
+decode_bitrate_segment_command = \
+    "docker run --rm -v {current_dir}:/media -u $(id -u):$(id -g) jrottenberg/ffmpeg:3.2 " \
+    "-y -i /media/{video_file_name} " \
+    "/media/{video_base_name}_{codec}_b{bitrate}_{start_time_format}.{extension}"
+
 encode_bitrate_segment_command = \
     "docker run --rm -v {current_dir}:/media -u $(id -u):$(id -g) jrottenberg/ffmpeg:3.2 " \
     "-y -i /media/{video_file_name} " \
@@ -351,6 +356,118 @@ elif args.bitrates:
             encode_result = subprocess.check_output(encode_command_string, shell=True)
         else:
             print("Escaping encoding file: %s" % encoded_file_name)
+
+        # calculate segment vmaf
+        vmaf_bitrate_list = []
+        if args.calculate_vmaf:
+            print("Computing VMAF")
+            for j in range(0, video_duration, args.segment_size):
+                print("\n*Segment: %d" % j)
+
+                # encoded segment name
+                file_segment_compare = psnr_bitrate_file.format(video_base_name=input_file_extensionless_basename,
+                                                                codec=args.codec,
+                                                                bitrate=i,
+                                                                start_time_format=str(j).zfill(3),
+                                                                extension=file_extension)
+                print("Segment encoded name: %s" % file_segment_compare)
+
+                file_segment_compare_yuv = psnr_bitrate_file.format(video_base_name=input_file_extensionless_basename,
+                                                                codec=args.codec,
+                                                                bitrate=i,
+                                                                start_time_format=str(j).zfill(3),
+                                                                extension="yuv")
+
+                print("Segment YUV name: %s" % file_segment_compare)
+
+                # check if it exists
+                segment_encoded_exists = os.path.isfile(file_segment_compare)
+                segment_encoded_yuv_exists = os.path.isfile(file_segment_compare_yuv)
+                if not segment_encoded_exists:
+                    encode_command_segment_string = encode_bitrate_segment_command.format(current_dir=input_file_path,
+                                                                                          video_file_name=input_file_basename,
+                                                                                          start_time=j,
+                                                                                          start_time_format=str(
+                                                                                              j).zfill(3),
+                                                                                          duration=args.segment_size,
+                                                                                          codec=args.codec,
+                                                                                          bitrate=i,
+                                                                                          gop_size=args.segment_size * args.frames_per_second,
+                                                                                          video_base_name=input_file_extensionless_basename,
+                                                                                          extension=file_extension)
+                    print("Running: %s" % encode_command_segment_string)
+                    encode_segment_result = subprocess.check_output(encode_command_segment_string, shell=True)
+                else:
+                    print("Escape encoding segment: %s" % file_segment_compare)
+
+                if not segment_encoded_yuv_exists:
+                    decode_command_segment_string = decode_bitrate_segment_command.format(current_dir=input_file_path,
+                                                                                          video_file_name=file_segment_compare,
+                                                                                          start_time=j,
+                                                                                          start_time_format=str(
+                                                                                              j).zfill(3),
+                                                                                          duration=args.segment_size,
+                                                                                          codec=args.codec,
+                                                                                          bitrate=i,
+                                                                                          gop_size=args.segment_size * args.frames_per_second,
+                                                                                          video_base_name=input_file_extensionless_basename,
+                                                                                          extension="yuv")
+                    print("Running: %s" % decode_command_segment_string)
+                    decode_segment_result = subprocess.check_output(decode_command_segment_string, shell=True)
+
+                else:
+                    print("Escape encoding segment: %s" % file_segment_compare_yuv)
+
+                # yuv segment name
+                file_segment_yuv = psnr_yuv_file.format(video_base_name=input_file_extensionless_basename,
+                                                        start_time_format=str(j).zfill(3),
+                                                        extension="yuv")
+                # check if it exists
+                segment_yuv_exists = os.path.isfile(file_segment_yuv)
+                if not segment_yuv_exists:
+                    encode_yuv_segment_string = encode_yuv_segment.format(current_dir=input_file_path,
+                                                                          video_file_name=input_file_basename,
+                                                                          start_time=j,
+                                                                          start_time_format=str(j).zfill(3),
+                                                                          duration=args.segment_size,
+                                                                          video_base_name=input_file_extensionless_basename,
+                                                                          extension="yuv")
+                    print("Running: %s" % encode_yuv_segment_string)
+                    encode_yuv_segment_result = subprocess.check_output(encode_yuv_segment_string, shell=True)
+                else:
+                    print("Escape creating yuv segment: %s" % file_segment_yuv)
+
+                # psnr
+                print("Calculating VMAF for bitrate: %s, segment: %d" % (i, j))
+                vmaf_command_string = vmaf_command.format(width=video_width,
+                                                          height=video_height,
+                                                          file_orig=file_segment_yuv,
+                                                          file_compare=file_segment_compare_yuv)
+                print("VMAF command: %s" % vmaf_command_string)
+                vmaf_command_result = subprocess.check_output(vmaf_command_string, shell=True).decode().replace('\\n', '\n')
+                vmaf_command_result_json = json.loads(vmaf_command_result)
+                print("VMAF result: %s" % vmaf_command_result)
+                vmaf_command_final = vmaf_command_result_json["aggregate"]["VMAF_score"]
+                print("VMAF mean: %s" % vmaf_command_final)
+                vmaf_bitrate_list.append(float(vmaf_command_final))
+                if args.clean:
+                    os.remove(file_segment_compare_yuv)
+                    os.remove(file_segment_compare)
+                    os.remove(file_segment_yuv)
+
+            vmafs[i] = vmaf_bitrate_list
+            print("\nVMAFs: %s" % vmafs)
+            if args.qualities:
+                psnr_file_diff = "_crf_vmaf"
+            else:
+                psnr_file_diff = "_bitrate_vmaf"
+            with open(input_file_extensionless_basename + psnr_file_diff + ".json", 'w') as file:
+                file.write(json.dumps(vmafs, sort_keys=False, indent=4, separators=(',', ': ')))
+
+
+
+
+
 
         # calculate segment psnr
         psnr_crf_list = []
