@@ -33,6 +33,14 @@ encode_quality_segment_command = \
     "-g {gop_size} -keyint_min {gop_size} -sc_threshold 0 " \
     "/media/{video_base_name}_{codec}_crf{crf}_{start_time_format}.{extension}"
 
+encode_quality_segment_from_yuv_segment_command = \
+    "docker run --rm -v {current_dir}:/media -u $(id -u):$(id -g) jrottenberg/ffmpeg:3.2 " \
+    "-s {width}x{height} " \
+    "-y -i /media/{video_file_name} " \
+    "-c:v {codec} -crf {crf} -b:v 0 " \
+    "-g {gop_size} -keyint_min {gop_size} -sc_threshold 0 " \
+    "/media/{video_base_name}_{codec}_crf{crf}_{start_time_format}.{extension}"
+
 decode_quality_segment_command = \
     "docker run --rm -v {current_dir}:/media -u $(id -u):$(id -g) jrottenberg/ffmpeg:3.2 " \
     "-y -i /media/{video_file_name} " \
@@ -156,9 +164,37 @@ if args.qualities:
         # calculate segment vmaf
         vmaf_crf_list = []
         if args.calculate_vmaf:
+
+            print("Pre-creating segment YUVs")
+            for j in range(0, video_duration, args.segment_size):
+                # yuv segment name
+                file_segment_yuv = psnr_yuv_file.format(video_base_name=input_file_extensionless_basename,
+                                                        start_time_format=str(j).zfill(3),
+                                                        extension="yuv")
+                # check if it exists
+                segment_yuv_exists = os.path.isfile(file_segment_yuv)
+                if not segment_yuv_exists:
+                    print("Pre-creating segment YUVs: %d" % j)
+                    encode_yuv_segment_string = encode_yuv_segment.format(current_dir=input_file_path,
+                                                                          video_file_name=input_file_basename,
+                                                                          start_time=j,
+                                                                          start_time_format=str(j).zfill(3),
+                                                                          duration=args.segment_size,
+                                                                          video_base_name=input_file_extensionless_basename,
+                                                                          extension="yuv")
+                    print("Running: %s" % encode_yuv_segment_string)
+                    encode_yuv_segment_result = subprocess.check_output(encode_yuv_segment_string, shell=True)
+                else:
+                    print("Escape creating yuv segment: %s" % file_segment_yuv)
+
             print("Computing VMAF")
             for j in range(0, video_duration, args.segment_size):
                 print("\n*Segment: %d" % j)
+
+                # source yuv file
+                file_segment_yuv = psnr_yuv_file.format(video_base_name=input_file_extensionless_basename,
+                                                        start_time_format=str(j).zfill(3),
+                                                        extension="yuv")
 
                 # encoded segment name
                 file_segment_compare = psnr_quality_file.format(video_base_name=input_file_extensionless_basename,
@@ -177,12 +213,26 @@ if args.qualities:
                 segment_encoded_exists = os.path.isfile(file_segment_compare)
                 segment_encoded_yuv_exists = os.path.isfile(file_segment_compare_yuv)
                 if not segment_encoded_exists:
-                    encode_command_segment_string = encode_quality_segment_command.format(current_dir=input_file_path,
-                                                                                          video_file_name=input_file_basename,
-                                                                                          start_time=j,
+                    # encode_command_segment_string = encode_quality_segment_command.format(current_dir=input_file_path,
+                    #                                                                       video_file_name=input_file_basename,
+                    #                                                                       start_time=j,
+                    #                                                                       start_time_format=str(
+                    #                                                                           j).zfill(3),
+                    #                                                                       duration=args.segment_size,
+                    #                                                                       codec=args.codec,
+                    #                                                                       crf=i,
+                    #                                                                       gop_size=args.segment_size * args.frames_per_second,
+                    #                                                                       video_base_name=input_file_extensionless_basename,
+                    #                                                                       extension=file_extension)
+                    # print("Running: %s" % encode_command_segment_string)
+                    # encode_segment_result = subprocess.check_output(encode_command_segment_string, shell=True)
+
+                    encode_command_segment_string = encode_quality_segment_from_yuv_segment_command.format(current_dir=input_file_path,
+                                                                                          video_file_name=file_segment_yuv,
                                                                                           start_time_format=str(
                                                                                               j).zfill(3),
-                                                                                          duration=args.segment_size,
+                                                                                          width=video_width,
+                                                                                          height=video_height,
                                                                                           codec=args.codec,
                                                                                           crf=i,
                                                                                           gop_size=args.segment_size * args.frames_per_second,
@@ -190,6 +240,7 @@ if args.qualities:
                                                                                           extension=file_extension)
                     print("Running: %s" % encode_command_segment_string)
                     encode_segment_result = subprocess.check_output(encode_command_segment_string, shell=True)
+
                 else:
                     print("Escape encoding segment: %s" % file_segment_compare)
 
