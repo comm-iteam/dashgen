@@ -11,7 +11,7 @@ Show the help with ```python3 dashgen.py -h``` to show:
 ```
 usage: dashgen.py [-h] [-q QUALITIES [QUALITIES ...] | -b BITRATES
                   [BITRATES ...]] -c CODEC -ss SEGMENT_SIZE
-                  [-fps FRAMES_PER_SECOND] [-psnr] [--clean]
+                  [-fps FRAMES_PER_SECOND] [-psnr] [-vmaf] [--clean]
                   video
 
 Generate DASH Video
@@ -33,6 +33,8 @@ optional arguments:
                         Frames per second
   -psnr, --calculate-psnr
                         Calculate PSNR
+  -vmaf, --calculate-vmaf
+                        Calculate VMAF
   --clean               Remove segment files
 ```
 
